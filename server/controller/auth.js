@@ -5,8 +5,7 @@ const CounselorProfileSchema = require("../model/CounselorProfile");
 const deleteFile = require("../utils/fileRemover");
 const bcryptjs = require("bcryptjs");
 const crypto = require("crypto");
-const cryptoSchema = require("../model/CryptoToken");
-const sendMail = require("../utils/nodeMailer");
+const sendMail = require("../utils/nodeMailer"); // Only for password reset
 exports.postLogin = async (req, res) => {
   try {
     const { email, role, password } = req.body; // Destructure the email from req.body
@@ -27,17 +26,17 @@ exports.postLogin = async (req, res) => {
       return res.status(403).json({ message: "None", success: false });
     }
     // Compare the provided password with the stored password hash
-    // const isMatch = await bcryptjs.compare(
-    //   password,
-    //   user.personalInfo.password
-    // );
+    const isMatch = await bcryptjs.compare(
+      password,
+      user.personalInfo.password
+    );
 
-    // // If the password does not match, return an error response
-    // if (!isMatch) {
-    //   return res
-    //     .status(401)
-    //     .json({ message: "Invalid credentials", success: false });
-    // }
+    // If the password does not match, return an error response
+    if (!isMatch) {
+      return res
+        .status(401)
+        .json({ message: "Invalid credentials", success: false });
+    }
     const { personalInfo } = user;
 
     // Create JWT token
@@ -83,11 +82,53 @@ exports.postLogin = async (req, res) => {
 
 exports.postRegister = async (req, res, next) => {
   try {
-    const { role, personalInfo } = req.body.registerUser;
+    // Debug: Log the incoming data
+    console.log("Registration request body:", JSON.stringify(req.body, null, 2));
+    console.log("Registration files:", req.files);
+    
+    const registerUserData = req.body.registerUser;
+    if (!registerUserData) {
+      console.error("registerUserData is missing from req.body");
+      return res.status(400).json({ 
+        message: "Registration data is missing", 
+        success: false 
+      });
+    }
+
+    console.log("registerUserData:", JSON.stringify(registerUserData, null, 2));
+    const { role, personalInfo } = registerUserData;
+    
+    if (!role) {
+      console.error("Role is missing");
+      return res.status(400).json({ 
+        message: "Role is missing", 
+        success: false 
+      });
+    }
+    
+    console.log("Role:", role);
+    
     if (role === "counselor") {
-      const { education, payment } = req.body.registerUser;
+      const { education, payment } = registerUserData;
       const filePath = req.files?.file?.[0]?.filename;
 
+      // Validate required fields
+      if (!personalInfo || !personalInfo.email || !personalInfo.password) {
+        if (filePath) deleteFile(filePath);
+        return res.status(400).json({ 
+          message: "Missing required personal information", 
+          success: false 
+        });
+      }
+
+      if (!education || !payment) {
+        if (filePath) deleteFile(filePath);
+        return res.status(400).json({ 
+          message: "Missing education or payment information", 
+          success: false 
+        });
+      }
+
       // Check if the user already exists
       const user = await UserSchema.findOne({
         "personalInfo.email": personalInfo.email,
@@ -95,39 +136,120 @@ exports.postRegister = async (req, res, next) => {
 
       if (user) {
         if (user.status === "disabled") {
-          deleteFile(filePath);
+          if (filePath) deleteFile(filePath);
           return res.status(403).json({ message: "None", success: false });
         }
-        deleteFile(filePath);
+        if (filePath) deleteFile(filePath);
         return res
           .status(409)
           .json({ message: "User already exist", success: false });
       }
 
-      // Generate token and hash password
-      const token = crypto.randomBytes(32).toString("hex");
+      // Hash password
       const bcryptPassword = await bcryptjs.hash(personalInfo.password, 12);
-      personalInfo.password = bcryptPassword;
+      const hashedPersonalInfo = {
+        ...personalInfo,
+        password: bcryptPassword,
+      };
       //removing 'confirmPassword' from personalInfo
-      delete personalInfo.confirmPassword;
-      // Save token and user data in the cryptoSchema
-      const saveCryptotoken = new cryptoSchema({
-        token,
-        personalInfo,
-        education,
-        payment,
-        file: filePath,
-        role,
-      });
-      await saveCryptotoken.save();
-      if (saveCryptotoken) {
-        // Send email with token
-        sendMail(personalInfo.email, token, "verify");
-        return res
-          .status(200)
-          .json({ message: "Check your Email!", success: true });
+      delete hashedPersonalInfo.confirmPassword;
+
+      // Validate file is provided (required for counselor)
+      if (!filePath) {
+        return res.status(400).json({ 
+          message: "Certificate file is required for counselor registration", 
+          success: false 
+        });
       }
+
+      // Create counselor profile
+      let savedProfile;
+      try {
+        const counselorProfile = new CounselorProfileSchema({
+          education,
+          payment,
+          file: filePath,
+        });
+        savedProfile = await counselorProfile.save();
+        console.log("Counselor profile saved:", savedProfile._id);
+      } catch (profileError) {
+        console.error("Error saving counselor profile:", profileError);
+        if (filePath) deleteFile(filePath);
+        return res.status(500).json({ 
+          message: "Failed to save counselor profile: " + profileError.message, 
+          success: false 
+        });
+      }
+
+      // Create user directly
+      let newUser;
+      try {
+        const saveUser = new UserSchema({
+          personalInfo: hashedPersonalInfo,
+          profile: "dummyImage.png",
+          role,
+          friends: [],
+          counselor: savedProfile._id,
+        });
+        newUser = await saveUser.save();
+        console.log("User saved:", newUser._id);
+      } catch (userError) {
+        console.error("Error saving user:", userError);
+        // Clean up: delete counselor profile if user creation fails
+        if (savedProfile) {
+          await CounselorProfileSchema.findByIdAndDelete(savedProfile._id);
+        }
+        if (filePath) deleteFile(filePath);
+        return res.status(500).json({ 
+          message: "Failed to save user: " + userError.message, 
+          success: false 
+        });
+      }
+
+      // Create JWT token
+      const token = jwt.sign(
+        {
+          name: personalInfo.name,
+          email: personalInfo.email,
+          userId: newUser._id,
+          role,
+          isLoggedIn: true,
+        },
+        process.env.JWT_SECRET_KEY,
+        {
+          expiresIn: 259200, // Token expiry time in seconds (3 days)
+        }
+      );
+
+      // Save session (optional - not critical for registration)
+      try {
+        const userSession = await client.set(
+          token,
+          JSON.stringify({ userId: newUser._id, userData: newUser, token: token }),
+          "EX",
+          259200
+        );
+        console.log("Session saved:", userSession);
+      } catch (sessionError) {
+        console.warn("Session save failed (non-critical):", sessionError);
+        // Continue even if session save fails
+      }
+
+      return res.status(200).json({
+        message: "Registration successful",
+        token,
+        success: true,
+      });
     } else {
+      // Student registration
+      // Validate required fields
+      if (!personalInfo || !personalInfo.email || !personalInfo.password) {
+        return res.status(400).json({ 
+          message: "Missing required personal information", 
+          success: false 
+        });
+      }
+
       // Check if the user already exists
       const user = await UserSchema.findOne({
         "personalInfo.email": personalInfo.email,
@@ -142,29 +264,80 @@ exports.postRegister = async (req, res, next) => {
           .json({ message: "User already exist", success: false });
       }
 
-      // Generate token and hash password
-      const token = crypto.randomBytes(32).toString("hex");
+      // Hash password
       const bcryptPassword = await bcryptjs.hash(personalInfo.password, 12);
-      personalInfo.password = bcryptPassword;
+      const hashedPersonalInfo = {
+        ...personalInfo,
+        password: bcryptPassword,
+      };
       //removing 'confirmPassword' from personalInfo
-      delete personalInfo.confirmPassword;
-      // Save token and user data in the cryptoSchema
-      let saveCryptotoken = new cryptoSchema({
-        token,
-        personalInfo,
-        role,
-      });
-      await saveCryptotoken.save();
-      if (saveCryptotoken) {
-        // Send email with token
-        sendMail(personalInfo.email, token, "verify");
-        return res
-          .status(200)
-          .json({ message: "Check your Email!", success: true });
+      delete hashedPersonalInfo.confirmPassword;
+
+      // Create user directly
+      let newUser;
+      try {
+        const saveUser = new UserSchema({
+          personalInfo: hashedPersonalInfo,
+          role,
+          friends: [],
+          profile: "dummyImage.png",
+        });
+        newUser = await saveUser.save();
+        console.log("Student user saved:", newUser._id);
+      } catch (userError) {
+        console.error("Error saving student user:", userError);
+        return res.status(500).json({ 
+          message: "Failed to save user: " + userError.message, 
+          success: false 
+        });
       }
+
+      // Create JWT token
+      const token = jwt.sign(
+        {
+          name: personalInfo.name,
+          email: personalInfo.email,
+          userId: newUser._id,
+          role,
+          isLoggedIn: true,
+        },
+        process.env.JWT_SECRET_KEY,
+        {
+          expiresIn: 259200, // Token expiry time in seconds (3 days)
+        }
+      );
+
+      // Save session (optional - not critical for registration)
+      try {
+        const userSession = await client.set(
+          token,
+          JSON.stringify({ userId: newUser._id, userData: newUser, token: token }),
+          "EX",
+          259200
+        );
+        console.log("Session saved:", userSession);
+      } catch (sessionError) {
+        console.warn("Session save failed (non-critical):", sessionError);
+        // Continue even if session save fails
+      }
+
+      return res.status(200).json({
+        message: "Registration successful",
+        token,
+        success: true,
+      });
     }
   } catch (error) {
-    return res.status(500).json({ message: "Server error", success: false });
+    console.error("Registration error:", error);
+    console.error("Error stack:", error.stack);
+    // Clean up file if error occurred
+    if (req.files?.file?.[0]?.filename) {
+      deleteFile(req.files.file[0].filename);
+    }
+    return res.status(500).json({ 
+      message: "Server error: " + (error.message || "Unknown error"), 
+      success: false 
+    });
   }
 };
 
@@ -207,130 +380,6 @@ exports.getUser = async (req, res, next) => {
     return res
       .status(200)
       .json({ data: userData, message: "user LoggedIn", success: true });
-  } catch (error) {
-    return res.status(500).json({ message: "Server error", success: false });
-  }
-};
-
-exports.getVerify = async (req, res, next) => {
-  try {
-    const cryptoToken = req.params.token;
-    // Find user by token in cryptoSchema
-    const cryptoUser = await cryptoSchema.findOne({ token: cryptoToken });
-    if (!cryptoUser) {
-      deleteFile(cryptoUser.file);
-      return res
-        .status(404)
-        .json({ message: "Time is out Please Register again", success: false });
-    }
-
-    const { role } = cryptoUser;
-
-    if (role === "counselor") {
-      const { personalInfo, education, payment, file } = cryptoUser;
-      const counselorProfile = new CounselorProfileSchema({
-        education,
-        payment,
-        file,
-      });
-      const saveUser = new UserSchema({
-        personalInfo,
-        profile: "dummyImage.png",
-        role,
-        friends: [],
-        counselor: counselorProfile._id,
-      });
-      // Save the user and counselorProfile to the database
-      await counselorProfile.save();
-      const user = await saveUser.save();
-
-      // Assign sessions and set a cookie with the token
-      const token = jwt.sign(
-        {
-          name: personalInfo.name,
-          email: personalInfo.email,
-          userId: user._id,
-          role,
-          isLoggedIn: true,
-        },
-        process.env.JWT_SECRET_KEY, // Replace with your secret key
-        {
-          expiresIn: 259200, // Token expiry time in seconds (3 days)
-        }
-      );
-
-      const userSession = await client.set(
-        token, // Key (token)
-        JSON.stringify({ userId: user._id, userData: user, token: token }), // Value (session data)
-        "EX", // Option for expiry time
-        259200 // Expiry time in seconds (3 days)
-      );
-
-      // Check Redis response. For some Redis clients, 'OK' may not be returned.
-      if (userSession !== "OK") {
-        deleteFile(file);
-        return res.status(500).json({
-          message: "Failed to create user session in Redis",
-          success: false,
-        });
-      }
-
-      await cryptoUser.deleteOne({ personalInfo: personalInfo.email }); // delete when the user Verify, not wait for 5min
-      return res.status(200).json({
-        message: "Register successfully",
-        token,
-        success: true,
-      });
-    } else {
-      const { personalInfo } = cryptoUser;
-      // Create a new user with the info from the token
-      const saveUser = new UserSchema({
-        personalInfo,
-        role,
-        friends: [],
-        profile: "dummyImage.png",
-      });
-
-      // Save the user to the database
-      const user = await saveUser.save();
-
-      // Assign sessions and set a cookie with the token
-      const token = jwt.sign(
-        {
-          name: personalInfo.name,
-          email: personalInfo.email,
-          userId: user._id,
-          role,
-          isLoggedIn: true,
-        },
-        process.env.JWT_SECRET_KEY, // Replace with your secret key
-        {
-          expiresIn: 259200, // Token expiry time in seconds (3 days)
-        }
-      );
-
-      const userSession = await client.set(
-        token, // Key (token)
-        JSON.stringify({ userId: user._id, userData: user, token: token }), // Value (session data)
-        "EX", // Option for expiry time
-        259200 // Expiry time in seconds (3 days)
-      );
-
-      // Check Redis response. For some Redis clients, 'OK' may not be returned.
-      if (userSession !== "OK") {
-        return res.status(500).json({
-          message: "Failed to create user session in Redis",
-          success: false,
-        });
-      }
-
-      await cryptoUser.deleteOne({ personalInfo: personalInfo.email });
-      return res.status(200).json({
-        message: "Register successfully",
-        token,
-        success: true,
-      });
-    }
   } catch (error) {
     return res.status(500).json({ message: "Server error", success: false });
   }

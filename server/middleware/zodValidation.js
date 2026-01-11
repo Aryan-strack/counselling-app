@@ -1,7 +1,10 @@
 exports.zodRegistrationValidation =
   (userSchema, counselorSchema) => (req, res, next) => {
     try {
-      const body = JSON.parse(req.body.registerUser);
+      // Handle both string and object formats
+      const body = typeof req.body.registerUser === 'string' 
+        ? JSON.parse(req.body.registerUser) 
+        : req.body.registerUser;
       const { role } = body;
       if (role === "student") {
         // Validate user data for student role
@@ -28,7 +31,7 @@ exports.zodRegistrationValidation =
       }
     } catch (err) {
       return res.status(400).json({
-        message: err.errors[0].message + "this actually works",
+        message: err.errors && err.errors[0] ? err.errors[0].message : err.message || "Validation error",
         success: false,
       });
     }

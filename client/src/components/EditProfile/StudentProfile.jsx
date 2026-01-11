@@ -30,7 +30,7 @@ export const StudentProfilePage = () => {
           setProfileData(responseData.data || []);
         } else {
           toast.error(responseData.message);
-        }     
+        }
       } catch (error) {
         toast.error("An unexpected error occurred while fetching profile data");
       }
@@ -100,7 +100,7 @@ export const StudentProfilePage = () => {
   //   return apiLoading && <LoadingOverlay />;
   // }
   return (
-    <div className="max-w-2xl mx-auto p-8 bg-white shadow-md rounded-lg">
+    <div className="max-w-2xl mx-auto pt-24 p-8 bg-white shadow-md rounded-lg">
       <div className="text-center">
         <div className="flex justify-center">
           <img

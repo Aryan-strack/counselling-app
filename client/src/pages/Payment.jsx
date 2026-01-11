@@ -57,33 +57,37 @@ export const Payment = () => {
       try {
         const { scheduleSessionData } = location.state;
         const counselingResponseData = await postData(
-          `${process.env.BACKEND_URL}/api/counseling-schedule`,
+          `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'}/api/counseling-schedule`,
           { ...scheduleSessionData, paymentMethodId: paymentMethod.id }
         );
-        if (counselingResponseData.success) {
-          const responseAdviceData = await postData(
-            `${process.env.BACKEND_URL}/api/buy-advice`,
-            { counselorId: scheduleSessionData.counselorId }
-          );
-          if (counselingResponseData.success) {
-            setRefreshFlag(true);
-            // const responseData = await fetchData(`${process.env.BACKEND_URL}/api/user`);
-            // if (responseData.success) {
-            toast.success(responseAdviceData.message);
-            navigate("/dashboard");
-            // }
-          } else {
-            toast.error(responseAdviceData.message || "Registration failed.");
-          }
+
+        // Check if response exists and has required properties
+        if (!counselingResponseData || !counselingResponseData.success) {
+          toast.error(counselingResponseData?.message || "Failed to schedule session");
+          return;
+        }
+
+        // If successful, proceed with buy-advice
+        const responseAdviceData = await postData(
+          `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'}/api/buy-advice`,
+          { counselorId: scheduleSessionData.counselorId }
+        );
+
+        if (responseAdviceData?.success) {
+          setRefreshFlag(true);
+          toast.success(responseAdviceData.message || "Session scheduled successfully!");
+          navigate("/dashboard");
         } else {
-          toast.error(counselingResponseData.message);
+          toast.error(responseAdviceData?.message || "Failed to complete registration");
         }
       } catch (error) {
+        console.error("Payment/Schedule Error:", error);
         toast.error(
-          "An unexpected error occurred while post counseling schedule"
+          error?.response?.data?.message || error?.message || "An unexpected error occurred while scheduling"
         );
       }
     }
+
   };
 
   return (

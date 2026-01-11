@@ -28,7 +28,7 @@ export const AuthProvider = ({ children }) => {
       resolve();
     });
   };
-  
+
   const LogoutUser = () => {
     setToken("");
     localStorage.removeItem("token");
@@ -70,10 +70,19 @@ export const AuthProvider = ({ children }) => {
       });
       // Extract data
       // dispatch({ type: "SET_USER_DATA", payload: axiosResponse?.data?.data });
-      return axiosResponse?.data;
+      return axiosResponse?.data || { success: false, message: "No response data" };
     } catch (error) {
+      console.error("API Error:", error);
       const responseData = error?.response?.data;
-      return responseData;
+      // If we have response data from server, return it
+      if (responseData) {
+        return responseData;
+      }
+      // Otherwise return a proper error object
+      return {
+        success: false,
+        message: error?.message || "Network error occurred"
+      };
       // dispatch({ type: "SET_ERROR", payload: responseData });
     } finally {
       // dispatch({ type: "SET_LOADING", payload: false });

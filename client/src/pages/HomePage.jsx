@@ -2,11 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
   motion,
-  useAnimation,
-  useInView,
+  useScroll,
+  useTransform,
   AnimatePresence,
+  useSpring,
 } from "framer-motion";
-// import { useTheme } from 'next-themes'
 import {
   Facebook,
   Twitter,
@@ -18,505 +18,430 @@ import {
   Users,
   ChevronDown,
   ChevronUp,
-  Menu,
-  X,
-  Sun,
-  Moon,
+  ArrowRight,
+  Star,
+  CheckCircle2,
+  ShieldCheck,
+  Zap,
+  Layout,
 } from "lucide-react";
 import { useAuth } from "../context/Context";
-import { LoadingOverlay } from "../components/Loading/Loading";
 import { toast } from "react-toastify";
 
-const Card = ({ children, className }) => {
-  return (
-    <div className={`rounded-lg shadow-md bg-gray-800 ${className}`}>
-      {children}
-    </div>
-  );
-};
+// Modern UI Components
+const GlassCard = ({ children, className = "" }) => (
+  <div className={`backdrop-blur-md bg-white/10 border border-white/20 rounded-2xl shadow-2xl ${className}`}>
+    {children}
+  </div>
+);
 
-const CardContent = ({ children, className }) => {
-  return <div className={`p-4 ${className}`}>{children}</div>;
-};
-
-const Button = ({ children, onClick, variant = "outline", className }) => {
-  const baseStyle = `px-4 py-2 rounded-md focus:outline-none transition-all  duration-200`;
-  const variantStyle =
-    variant === "outline"
-      ? " text-gray-700  dark:text-gray-300"
-      : "bg-primary text-white"; // Modify variants as needed
-
-  return (
-    <button
-      onClick={onClick}
-      className={`${baseStyle} ${variantStyle} ${className}`}
-    >
-      {children}
-    </button>
-  );
-};
-
-const Badge = ({ children, className, variant = "secondary" }) => {
-  const baseStyle = `px-2 py-1 text-xs font-semibold rounded-full`;
-  const variantStyle =
-    variant === "secondary"
-      ? "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
-      : "bg-primary text-white"; // Modify variants as needed
-
-  return (
-    <span className={`${baseStyle} ${variantStyle} ${className}`}>
-      {children}
-    </span>
-  );
-};
-
-function EnhancedDottedGlobe({ isDark = false }) {
-  const dotColor = isDark ? "#ffffff" : "#000000";
-  const orbitColor = isDark ? "rgba(255, 255, 255, 0.2)" : "rgba(0, 0, 0, 0.2)";
-
-  const generateDots = (count, radius) => {
-    const dots = [];
-    for (let i = 0; i < count; i++) {
-      const angle = (i / count) * Math.PI * 2;
-      const x = Math.cos(angle) * radius;
-      const y = Math.sin(angle) * radius;
-      dots.push(<circle key={i} cx={x} cy={y} r="0.5" fill={dotColor} />);
-    }
-    return dots;
+const PremiumButton = ({ children, onClick, variant = "primary", className = "" }) => {
+  const variants = {
+    primary: "bg-secondary text-primary-dark hover:bg-secondary-light shadow-[0_0_20px_rgba(245,158,11,0.3)]",
+    outline: "border-2 border-white/30 text-white hover:bg-white/10 backdrop-blur-sm",
+    accent: "bg-accent text-white hover:bg-accent-light shadow-[0_0_20px_rgba(99,102,241,0.3)]"
   };
-  // rotating circle
+
   return (
-    <motion.div
-      className="w-80 h-80 relative"
-      animate={{ rotate: 360 }}
-      transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
+    <motion.button
+      whileHover={{ scale: 1.02, translateY: -2 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={onClick}
+      className={`px-8 py-3 rounded-full font-bold transition-all duration-300 flex items-center justify-center gap-2 ${variants[variant]} ${className}`}
     >
-      <svg viewBox="-50 -50 100 100" className="w-full h-full">
-        <defs>
-          <radialGradient
-            id="globe-gradient"
-            cx="50%"
-            cy="50%"
-            r="50%"
-            fx="50%"
-            fy="50%"
-          >
-            <stop
-              offset="0%"
-              stopColor={isDark ? "#000000" : "#000000"}
-              stopOpacity="0.8"
-            />
-            <stop
-              offset="100%"
-              stopColor={isDark ? "#000000" : "#FACC15"}
-              stopOpacity="0.7"
-            />
-          </radialGradient>
-        </defs>
-        <circle r="49" fill="url(#globe-gradient)" />
-        <motion.g
-          animate={{ rotateY: 360 }}
-          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-        >
-          {generateDots(60, 45)}
-          <circle r="45" fill="none" stroke={orbitColor} strokeWidth="0.2" />
-        </motion.g>
-        <motion.g
-          animate={{ rotateX: 360 }}
-          transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
-        >
-          {generateDots(50, 35)}
-          <circle r="35" fill="none" stroke={orbitColor} strokeWidth="0.2" />
-        </motion.g>
-        <motion.g
-          animate={{ rotate: 360 }}
-          transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
-        >
-          {generateDots(40, 25)}
-          <circle r="25" fill="none" stroke={orbitColor} strokeWidth="0.2" />
-        </motion.g>
-        <motion.g
-          animate={{ scale: [1, 1.1, 1] }}
-          transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-        >
-          {generateDots(30, 15)}
-          <circle r="15" fill="none" stroke={orbitColor} strokeWidth="0.2" />
-        </motion.g>
-      </svg>
-    </motion.div>
+      {children}
+    </motion.button>
+  );
+};
+
+const SectionHeading = ({ title, subtitle, centered = true }) => (
+  <div className={`mb-16 ${centered ? "text-center" : ""}`}>
+    <motion.span
+      initial={{ opacity: 0, y: 10 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      className="text-secondary font-bold tracking-widest uppercase text-sm mb-4 block"
+    >
+      {subtitle}
+    </motion.span>
+    <motion.h2
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      className="text-4xl md:text-5xl font-bold dark:text-white text-primary"
+    >
+      {title}
+    </motion.h2>
+  </div>
+);
+
+function BackgroundElements() {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-accent/20 rounded-full blur-[120px] animate-pulse-slow" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-secondary/10 rounded-full blur-[120px] animate-pulse-slow font-delay-2000" />
+      <div className="absolute top-[20%] right-[10%] w-[20%] h-[20%] bg-primary-light/10 rounded-full blur-[80px]" />
+    </div>
   );
 }
 
 function CounselorCard({ counselor }) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const controls = useAnimation();
-  const ref = useRef(null);
-  const inView = useInView(ref);
-
-  useEffect(() => {
-    if (inView) {
-      controls.start({ opacity: 1, y: 0 });
-    }
-  }, [controls, inView]);
-
-  const handleError = (e) => {
-    e.target.src = "/fallback-image.png"; // Fallback image path
-  };
 
   return (
     <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 50 }}
-      animate={controls}
-      transition={{ duration: 0.5 }}
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      whileHover={{ y: -10 }}
+      className="group"
     >
-      <Card className="w-full overflow-hidden transition-all duration-300 hover:shadow-xl bg-gradient-to-br from-primary/5 to-primary/20 dark:from-primary-dark/5 dark:to-primary-dark/20">
-        <CardContent className="p-0">
-          <div className="relative h-48 overflow-hidden text-white">
-            <img
-              src={`${process.env.BACKEND_URL}/images/${counselor.profile}`}
-              alt={`${counselor.personalInfo.name}, Counselor`}
-              className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-              onError={handleError}
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-            <motion.div
-              className="absolute bottom-4 left-4 right-4 flex justify-between items-end"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.5 }}
-            >
+      <div className="relative overflow-hidden bg-white dark:bg-primary-light/20 rounded-3xl border border-gray-100 dark:border-white/5 transition-all duration-500 hover:shadow-[0_20px_40px_rgba(0,0,0,0.1)] dark:hover:shadow-[0_20px_40px_rgba(0,0,0,0.3)]">
+        {/* Profile Image Wrapper */}
+        <div className="relative h-64 w-full">
+          <img
+            src={`${process.env.BACKEND_URL}/images/${counselor.profile}`}
+            alt={counselor.personalInfo.name}
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+            onError={(e) => (e.target.src = "/fallback-image.png")}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+          <div className="absolute bottom-4 left-6 right-6">
+            <div className="flex justify-between items-end">
               <div>
-                <h3 className="text-xl font-bold text-white mb-1">
+                <span className="inline-block px-3 py-1 bg-secondary text-primary-dark text-xs font-bold rounded-full mb-2">
+                  {counselor.counselor.education.category || "Professional"}
+                </span>
+                <h3 className="text-xl font-bold text-white tracking-tight">
                   {counselor.personalInfo.name}
                 </h3>
-                <Badge className="bg-primary/80 text-primary-foreground  text-white">
-                  {counselor.counselor.education.category}
-                </Badge>
               </div>
-              <div className="flex items-center bg-primary/80 text-primary-foreground px-2 py-1 rounded-full">
-                <span className="font-bold">4.6</span>
+              <div className="flex items-center gap-1 bg-white/20 backdrop-blur-md px-2 py-1 rounded-lg border border-white/20">
+                <Star className="w-3 h-3 text-secondary fill-secondary" />
+                <span className="text-white text-xs font-bold">4.9</span>
               </div>
-            </motion.div>
+            </div>
           </div>
-          <div className="p-4">
-            <motion.div
-              className="flex justify-between items-center mb-4"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4, duration: 0.5 }}
-            >
-              <div className="flex items-center text-white">
-                <Clock className="w-4 h-4 mr-1 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground  ">
-                  {counselor.counselor.education.experience} exp.
-                </span>
-              </div>
-              <div className="flex items-center text-white">
-                <Users className="w-4 h-4 mr-1 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">
-                  {counselor.friends.length}+ clients
-                </span>
-              </div>
-            </motion.div>
-            <AnimatePresence>
-              {isExpanded && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <p className="text-sm text-muted-foreground mb-4 text-white">
-                    {counselor.counselor.education.description}
-                  </p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Button
-                variant="outline"
-                className="w-full border border-secondary"
-                onClick={() => setIsExpanded(!isExpanded)}
-              >
-                {isExpanded ? (
-                  <>
-                    <ChevronUp className="w-4 h-4 mr-2 " />
-                    <span className="text-secondary hover:text-white hover:scale-105 text-lg duration-150">
-                      Show Less
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown className="w-4 h-4 mr-2 " />
-                    <span className="text-secondary hover:text-white hover:scale-105 text-lg duration-300">
-                      {" "}
-                      Read More
-                    </span>
-                  </>
-                )}
-              </Button>
-            </motion.div>
+        </div>
+
+        {/* Card Body */}
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6 text-sm">
+            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+              <Clock className="w-4 h-4 text-accent" />
+              <span>{counselor.counselor.education.experience} Experience</span>
+            </div>
+            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+              <Users className="w-4 h-4 text-secondary" />
+              <span>{counselor.friends.length}+ Clients</span>
+            </div>
           </div>
-        </CardContent>
-      </Card>
+
+          <p className={`text-sm text-gray-600 dark:text-gray-300 leading-relaxed mb-6 transition-all duration-300 ${isExpanded ? "" : "line-clamp-2"}`}>
+            {counselor.counselor.education.description}
+          </p>
+
+          <PremiumButton
+            variant="outline"
+            className="w-full !py-2 !px-4 text-sm border-gray-200 dark:border-white/10 !text-primary dark:!text-white hover:!bg-accent hover:!text-white hover:!border-accent"
+            onClick={() => setIsExpanded(!isExpanded)}
+          >
+            {isExpanded ? "Show Less" : "View Profile"}
+            <ArrowRight className={`w-4 h-4 transition-transform ${isExpanded ? "-rotate-90" : ""}`} />
+          </PremiumButton>
+        </div>
+      </div>
     </motion.div>
   );
 }
 
-function WavyLine({ color = "currentColor" }) {
-  return (
-    <svg
-      className="w-full h-20 -mt-1"
-      viewBox="0 0 1440 100"
-      preserveAspectRatio="none"
-    >
-      <defs>
-        <linearGradient id="wave-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#FACC15" />
-          <stop offset="50%" stopColor="#FACC15" />
-          <stop offset="100%" stopColor="#FACC15" />
-        </linearGradient>
-      </defs>
-      <motion.path
-        fill="url(#wave-gradient)"
-        fillOpacity="1"
-        initial={{
-          d: "M0,32L48,37.3C96,43,192,53,288,58.7C384,64,480,64,576,58.7C672,53,768,43,864,48C960,53,1056,75,1152,80C1248,85,1344,75,1392,69.3L1440,64L1440,0L1392,0C1344,0,1248,0,1152,0C1056,0,960,0,864,0C768,0,672,0,576,0C480,0,384,0,288,0C192,0,96,0,48,0L0,0Z",
-        }}
-        animate={{
-          d: [
-            "M0,32L48,37.3C96,43,192,53,288,58.7C384,64,480,64,576,58.7C672,53,768,43,864,48C960,53,1056,75,1152,80C1248,85,1344,75,1392,69.3L1440,64L1440,0L1392,0C1344,0,1248,0,1152,0C1056,0,960,0,864,0C768,0,672,0,576,0C480,0,384,0,288,0C192,0,96,0,48,0L0,0Z",
-            "M0,64L48,69.3C96,75,192,85,288,80C384,75,480,53,576,48C672,43,768,53,864,58.7C960,64,1056,64,1152,58.7C1248,53,1344,43,1392,37.3L1440,32L1440,0L1392,0C1344,0,1248,0,1152,0C1056,0,960,0,864,0C768,0,672,0,576,0C480,0,384,0,288,0C192,0,96,0,48,0L0,0Z",
-            "M0,32L48,37.3C96,43,192,53,288,58.7C384,64,480,64,576,58.7C672,53,768,43,864,48C960,53,1056,75,1152,80C1248,85,1344,75,1392,69.3L1440,64L1440,0L1392,0C1344,0,1248,0,1152,0C1056,0,960,0,864,0C768,0,672,0,576,0C480,0,384,0,288,0C192,0,96,0,48,0L0,0Z",
-          ],
-        }}
-        transition={{ repeat: Infinity, duration: 10, ease: "easeInOut" }}
-      ></motion.path>
-    </svg>
-  );
-}
-
-function ScrollToTopButton() {
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    const toggleVisibility = () => {
-      if (window.pageYOffset > 300) {
-        setIsVisible(true);
-      } else {
-        setIsVisible(false);
-      }
-    };
-
-    window.addEventListener("scroll", toggleVisibility);
-
-    return () => window.removeEventListener("scroll", toggleVisibility);
-  }, []);
-
-  const scrollToTop = () => {
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
-  };
-
-  return (
-    <AnimatePresence>
-      {isVisible && (
-        <motion.button
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 20 }}
-          onClick={scrollToTop}
-          className="fixed bottom-4 right-4 bg-primary text-white p-2 rounded-full shadow-lg hover:bg-primary-dark transition-colors duration-300"
-          aria-label="Scroll to top"
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-        >
-          <ChevronUp size={24} />
-        </motion.button>
-      )}
-    </AnimatePresence>
-  );
-}
-
-function FloatingShapes() {
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      <motion.div
-        className="absolute top-32 left-52 w-16 h-16 bg-secondary rounded-full"
-        animate={{
-          y: [0, -20, 0],
-          x: [0, 10, 0],
-          rotate: [0, 180, 360],
-        }}
-        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        className="absolute top-80 right-16 w-24 h-24 bg-secondary rounded-lg"
-        animate={{
-          y: [0, 50, 0],
-          x: [0, 0, 0],
-          rotate: [0, -180, -360],
-        }}
-        transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        className="absolute bottom-32 left-96 w-20 h-20 border-4 border-secondary  rounded-full"
-        animate={{
-          scale: [1, 1.1, 1],
-          rotate: [0, 90, 0],
-        }}
-        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-      />
-    </div>
-  );
-}
+const FeatureIcon = ({ icon: Icon, color }) => (
+  <div className={`p-4 rounded-2xl ${color} bg-opacity-10 mb-6 inline-block`}>
+    <Icon className={`w-8 h-8 ${color.replace('bg-', 'text-')}`} />
+  </div>
+);
 
 export function HomePage() {
-  // const { isLoggedIn, LogoutUser} = useAuth();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [theme, setTheme] = useState("light"); // Default theme state
-
-  const toggleTheme = () => {
-    setTheme((prevTheme) => (prevTheme === "dark" ? "light" : "dark"));
-  };
-  // const { getCounselors, fetchData, apiLoading } = useAuth();
-  const { fetchData, apiLoading, isLoggedIn } = useAuth();
-  // Dummy data for counselors
-
+  const { fetchData, isLoggedIn } = useAuth();
   const [counselors, setCounselors] = useState([]);
+  const { scrollYProgress } = useScroll();
+  const scale = useSpring(scrollYProgress, { stiffness: 100, damping: 30 });
+
   useEffect(() => {
     const fetchingData = async () => {
       try {
-        const responseData = await fetchData(
-          `${process.env.BACKEND_URL}/api/counselors`
-        );
+        const responseData = await fetchData(`${process.env.BACKEND_URL}/api/counselors`);
         if (responseData.success) {
           setCounselors(responseData.data || []);
-        } else {
-          toast.error(responseData.message);
         }
       } catch (error) {
-        toast.error("An unexpected error occurred while counselors list");
+        toast.error("Failed to fetch counselors");
       }
     };
     fetchingData();
   }, [fetchData, isLoggedIn]);
 
-  // if (apiLoading) {
-  //   return <LoadingOverlay />;
-  // }
   return (
-    <>
-      <div
-        className={`flex flex-col w-full min-h-screen overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 transition-colors duration-300 ${theme}`}
-      >
-        {isMenuOpen && (
-          <div className="md:hidden bg-white dark:bg-gray-800 shadow-md py-4 px-4">
-            <div className="flex flex-col space-y-4">
-              <Link
-                to="/"
-                className="hover:text-primary dark:hover:text-primary-light transition-colors"
+    <div className="flex flex-col w-full min-h-screen bg-surface-soft dark:bg-primary-dark overflow-x-hidden">
+      {/* Progress Bar */}
+      <motion.div
+        className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-secondary via-accent to-secondary-dark z-[100] origin-left"
+        style={{ scaleX: scrollYProgress }}
+      />
+
+      <main className="flex-grow">
+        {/* --- Hero Section --- */}
+        <section className="relative min-h-[90vh] flex items-center pt-20 overflow-hidden">
+          <BackgroundElements />
+
+          <div className="container mx-auto px-6 relative z-10">
+            <div className="flex flex-col lg:flex-row items-center gap-12">
+              <div className="lg:w-3/5 text-center lg:text-left">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 text-accent font-bold text-sm mb-8"
+                >
+                  <Zap className="w-4 h-4" />
+                  <span>The Future of Counseling is Here</span>
+                </motion.div>
+
+                <motion.h1
+                  initial={{ opacity: 0, x: -50 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="text-6xl md:text-8xl font-black text-primary dark:text-white leading-[1.1] mb-8"
+                >
+                  Unlock Your <br />
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-secondary via-accent to-secondary-dark animate-gradient-x">
+                    True Potential
+                  </span>
+                </motion.h1>
+
+                <motion.p
+                  initial={{ opacity: 0, x: -30 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.4 }}
+                  className="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mb-12 leading-relaxed"
+                >
+                  Connect with world-class mentors and counselors who will guide you
+                  towards a brighter future in education and career.
+                </motion.p>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6 }}
+                  className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-6"
+                >
+                  <PremiumButton variant="primary">
+                    Start Your Journey
+                    <ArrowRight className="w-5 h-5" />
+                  </PremiumButton>
+                  <PremiumButton variant="outline" className="!text-primary dark:!text-white !border-primary/10 dark:!border-white/10">
+                    Learn How it Works
+                  </PremiumButton>
+                </motion.div>
+
+                {/* Social Proof */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.8 }}
+                  className="mt-16 flex items-center gap-8 justify-center lg:justify-start grayscale opacity-50 dark:invert"
+                >
+                  <span className="text-sm font-bold uppercase tracking-widest text-gray-500">Trusted By</span>
+                  <div className="flex gap-8">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg" className="h-6" alt="Google" />
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/5/51/IBM_logo.svg" className="h-6" alt="IBM" />
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/0/08/Netflix_2015_logo.svg" className="h-6" alt="Netflix" />
+                  </div>
+                </motion.div>
+              </div>
+
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8, rotate: 5 }}
+                animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                transition={{ duration: 1, type: "spring" }}
+                className="lg:w-2/5 relative"
               >
-                Home
-              </Link>
-              <Link
-                to="/services"
-                className="hover:text-primary dark:hover:text-primary-light transition-colors"
-              >
-                Services
-              </Link>
-              <Link
-                to="/about"
-                className="hover:text-primary dark:hover:text-primary-light transition-colors"
-              >
-                About Us
-              </Link>
-              <Link
-                to="/counselors"
-                className="hover:text-primary dark:hover:text-primary-light transition-colors"
-              >
-                Counselors
-              </Link>
-              <Link
-                to="/contact"
-                className="hover:text-primary dark:hover:text-primary-light transition-colors"
-              >
-                Contact
-              </Link>
+                <div className="relative z-10 p-8">
+                  <GlassCard className="p-2 overflow-hidden ring-1 ring-white/20">
+                    <img
+                      src="https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&q=80&w=800"
+                      alt="Counseling Session"
+                      className="rounded-xl shadow-inner"
+                    />
+                  </GlassCard>
+                </div>
+                {/* Floating Elements */}
+                <motion.div
+                  animate={{ y: [0, -20, 0] }}
+                  transition={{ duration: 4, repeat: Infinity }}
+                  className="absolute -top-4 -right-4 z-20"
+                >
+                  <GlassCard className="p-4 flex items-center gap-3">
+                    <div className="bg-green-500 w-3 h-3 rounded-full animate-ping" />
+                    <span className="text-sm font-bold text-white">124 Counselors Online</span>
+                  </GlassCard>
+                </motion.div>
+              </motion.div>
             </div>
           </div>
-        )}
-        <main className="flex-grow">
-          <section className="bg-gradient-to-b from-primary to-primary-light dark:from-primary-dark dark:to-primary text-white py-20 relative overflow-hidden transition-colors duration-300">
-            <FloatingShapes />
-            <div className="container mx-auto pt-32 px-4 relative z-10">
-              <div className="flex flex-col md:flex-row items-center">
-                <div className="md:w-1/2 mb-10 pb-32 md:mb-0">
-                  <h1 className="text-3xl md:text-4xl font-bold mb-6">
-                    Your Path to{" "}
-                    <span className="text-5xl font-bold text-secondary">
-                      Success
-                    </span>{" "}
-                    Starts Here.
-                  </h1>
-                  <p className="text-xl mb-8">
-                    Get personalized education and career counseling to unlock
-                    your full potential.
+        </section>
+
+        {/* --- Stats Section --- */}
+        <section className="py-24 relative">
+          <div className="container mx-auto px-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+              {[
+                { label: "Active Students", value: "50k+", icon: Users },
+                { label: "Expert Advisors", value: "200+", icon: Star },
+                { label: "Success Rate", value: "98%", icon: ShieldCheck },
+                { label: "Sessions Held", value: "10k+", icon: CheckCircle2 },
+              ].map((stat, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.1 }}
+                  className="text-center p-8 rounded-3xl bg-white dark:bg-primary-light/10 border border-gray-100 dark:border-white/5"
+                >
+                  <stat.icon className="w-8 h-8 mx-auto mb-4 text-accent" />
+                  <div className="text-4xl font-black text-primary dark:text-white mb-2">{stat.value}</div>
+                  <div className="text-sm text-gray-500 font-bold uppercase tracking-widest">{stat.label}</div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* --- Features Section --- */}
+        <section className="py-24 bg-surface-soft dark:bg-primary-dark/50">
+          <div className="container mx-auto px-6">
+            <SectionHeading
+              subtitle="Why Choose Us"
+              title="Experience Professional Counseling Like Never Before"
+            />
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+              {[
+                {
+                  title: "Smart Matching",
+                  desc: "Our AI-powered algorithm connects you with the most suitable counselor based on your specific needs.",
+                  icon: Zap,
+                  color: "bg-blue-500"
+                },
+                {
+                  title: "Real-time Sessions",
+                  desc: "Experience zero latency video and chat sessions with our high-performance communication layer.",
+                  icon: Layout,
+                  color: "bg-purple-500"
+                },
+                {
+                  title: "Guaranteed Security",
+                  desc: "Your data and sessions are protected by enterprise-grade encryption and strict privacy protocols.",
+                  icon: ShieldCheck,
+                  color: "bg-emerald-500"
+                }
+              ].map((feature, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.2 }}
+                  className="p-10 rounded-[2.5rem] bg-white dark:bg-primary-light/10 border border-gray-100 dark:border-white/5 transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 group"
+                >
+                  <FeatureIcon icon={feature.icon} color={feature.color} />
+                  <h3 className="text-2xl font-bold dark:text-white mb-4 group-hover:text-accent transition-colors">{feature.title}</h3>
+                  <p className="text-gray-600 dark:text-gray-400 leading-relaxed font-medium">
+                    {feature.desc}
                   </p>
-                  <div className="flex flex-col md:flex-row items-center md:justify-start gap-4">
-                    <button className="w-full md:w-auto hover:scale-110 py-4 px-6 text-xl md:text-2xl font-bold rounded-md text-primary bg-secondary hover:bg-secondary hover:text-white transition-colors duration-300">
-                      Get Started
-                    </button>
-                    <button className="w-full md:w-auto hover:scale-110 py-4 px-6 text-xl md:text-2xl font-bold rounded-md bg-primary hover:text-secondary transition-colors duration-300">
-                      Learn More
-                    </button>
-                  </div>
-                </div>
-                <div className="md:w-1/2 -mt-44 flex justify-center">
-                  <EnhancedDottedGlobe />
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* --- Counselors Section --- */}
+        <section className="py-32 relative overflow-hidden">
+          <div className="container mx-auto px-6">
+            <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-8">
+              <div className="max-w-2xl">
+                <motion.span
+                  initial={{ opacity: 0 }}
+                  whileInView={{ opacity: 1 }}
+                  className="text-accent font-black tracking-widest uppercase text-xs mb-4 block"
+                >
+                  World Class Mentors
+                </motion.span>
+                <motion.h2
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  className="text-5xl font-black dark:text-white leading-tight"
+                >
+                  Meet Our <span className="text-secondary">Elite</span> Counselors
+                </motion.h2>
+              </div>
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Link to="/counselors" className="group flex items-center gap-3 text-lg font-bold dark:text-white">
+                  Discover All Experts
+                  <span className="w-12 h-12 rounded-full border border-gray-200 dark:border-white/10 flex items-center justify-center group-hover:bg-accent group-hover:border-accent transition-all">
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </span>
+                </Link>
+              </motion.div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+              {counselors?.slice(0, 3).map((counselor, index) => (
+                <CounselorCard key={index} counselor={counselor} />
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* --- CTA Section --- */}
+        <section className="py-24 px-6">
+          <div className="container mx-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              className="relative rounded-[3rem] bg-accent p-12 md:p-20 overflow-hidden text-center"
+            >
+              <div className="absolute top-0 right-0 w-[40%] h-[40%] bg-white/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2" />
+              <div className="absolute bottom-0 left-0 w-[40%] h-[40%] bg-black/10 rounded-full blur-[80px] translate-y-1/2 -translate-x-1/2" />
+
+              <div className="relative z-10">
+                <h2 className="text-4xl md:text-6xl font-black text-white mb-8 tracking-tight">
+                  Ready to Transform <br /> Your Career Path?
+                </h2>
+                <p className="text-xl text-white/80 max-w-2xl mx-auto mb-12">
+                  Join thousands of successful students who found their passion
+                  through our professional counseling services.
+                </p>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+                  <PremiumButton className="!bg-white !text-accent hover:!bg-white/90 !px-12 !py-4 text-xl">
+                    Get Started Now
+                  </PremiumButton>
+                  <Link to="/about" className="text-white font-bold hover:underline">
+                    View Success Stories
+                  </Link>
                 </div>
               </div>
-            </div>
-            <div className="absolute bottom-0 left-0 right-0 text-white dark:text-gray-800">
-              <WavyLine />
-            </div>
-          </section>
+            </motion.div>
+          </div>
+        </section>
+      </main>
 
-          <section className="py-20 bg-white dark:bg-gray-900 transition-colors duration-300">
-            <div className="container mx-auto px-4">
-              <h2 className="text-3xl font-bold text-center mb-12 dark:text-white">
-                Our Expert Counselors
-              </h2>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {/* Map through counselors data here */}
-                {counselors?.map((counselor, index) => (
-                  <CounselorCard key={index} counselor={counselor} />
-                ))}
-              </div>
-            </div>
-          </section>
-
-          <section className="bg-gradient-to-r from-primary to-primary-dark dark:from-primary-dark dark:to-primary text-white py-20 relative transition-colors duration-300">
-            <FloatingShapes />
-            <div className="container mx-auto px-4 text-center relative z-10">
-              <h2 className="text-3xl font-bold mb-8">
-                Ready to Take the Next Step?
-              </h2>
-              <p className="text-xl mb-8">
-                Book a session with one of our expert counselors and start your
-                journey to success.
-              </p>
-              <button className=" hover:scale-110 py-4 px-6 text-2xl font-bold rounded-md inline-block mr-4 text-primary bg-secondary hover:bg-secondary hover:text-white transition-colors duration-300">
-                Book a Session
-              </button>
-            </div>
-          </section>
-        </main>
-      </div>
-    </>
+      {/* Floating Action Button */}
+      <motion.button
+        whileHover={{ scale: 1.1, rotate: 5 }}
+        whileTap={{ scale: 0.9 }}
+        className="fixed bottom-8 right-8 w-16 h-16 bg-secondary text-primary-dark rounded-full shadow-[0_10px_30px_rgba(245,158,11,0.5)] z-[90] flex items-center justify-center"
+        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      >
+        <ChevronUp className="w-8 h-8" />
+      </motion.button>
+    </div>
   );
 }

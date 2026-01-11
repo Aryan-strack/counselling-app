@@ -10,7 +10,7 @@ const path = require("path");
 let client = require("./utils/redisDatabase");
 // const authentication = require("./middleware/authentication").authentication
 const counselorRoute = require("./router/counselor");
-const authRoute = require("./router/auth");
+const authRoute = require("./router/auth"); 
 const messageRoute = require("./router/message");
 const profileRoute = require("./router/profile");
 const userStatusRoute = require("./router/userStatus");
@@ -23,17 +23,24 @@ const server = http.createServer(app);
 const allowedOrigins = [
   "https://counselling-app-ki9p.onrender.com",
   "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:3000",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
+  "http://127.0.0.1:3000",
 ];
 
 const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Allow all localhost origins for development
+    if (!origin || origin.includes('localhost') || origin.includes('127.0.0.1') || allowedOrigins.includes(origin)) {
       callback(null, true); // Allow the origin
     } else {
+      console.log('CORS blocked origin:', origin);
       callback(new Error("Not allowed by CORS")); // Block the origin
     }
   },
-  methods: ["GET", "POST", "DELETE", "UPDATE"],
+  methods: ["GET", "POST", "DELETE", "PUT", "PATCH"],
   credentials: true, // Ensure lowercase "credentials"
 };
 
@@ -124,5 +131,14 @@ try {
 }
 
 mongoose.connect(process.env.MONGODB_STRING).then(() => {
-  server.listen(PORT);
+  console.log("✅ MongoDB connected successfully!");
+  server.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+  });
+}).catch((error) => {
+  console.log("⚠️ MongoDB connection failed, but starting server anyway...");
+  console.log("Error:", error.message);
+  server.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT} (without MongoDB)`);
+  });
 });

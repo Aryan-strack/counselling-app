@@ -1,0 +1,13 @@
+{
+  "name": "counselling-app-root",
+  "version": "1.0.0",
+  "description": "Root package to manage frontend and backend",
+  "scripts": {
+    "client": "npm run dev --prefix client",
+    "server": "npm run start --prefix server",
+    "dev": "concurrently \"npm run client\" \"npm run server\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

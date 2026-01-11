@@ -60,7 +60,7 @@ const sendMail = (email, token = "", purpose = "", userId="") => {
                   ? ""
                   : `<p style="text-align: center; margin: 40px 0;">
                       <a
-                        href="https://counselling-app-ki9p.onrender.com/${
+                        href="http://localhost:5173/${
                           purpose === "verify"
                             ? `register/verify/${token}`
                             : `password-reset/${token}/${userId}`

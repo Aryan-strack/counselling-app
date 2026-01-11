@@ -33,9 +33,9 @@ const UserSchemaZod = z
     counselor: z.string().optional(),
     friends: z.array(z.string()).optional(),
   })
-  .refine((data) => data.password === data.confirmPassword, {
+  .refine((data) => data.personalInfo.password === data.personalInfo.confirmPassword, {
     message: "Passwords do not match!",
-    path: ["confirmPassword"], // Set the error path to confirmPassword
+    path: ["personalInfo", "confirmPassword"], // Set the error path to confirmPassword
   });
 
 module.exports = UserSchemaZod;

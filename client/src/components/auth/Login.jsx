@@ -2,19 +2,13 @@ import React, { useState } from "react";
 import { useAuth } from "../../context/Context";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { LoadingOverlay } from "../Loading/Loading";
+import { motion } from "framer-motion";
+import { Mail, Lock, LogIn, ArrowLeft, ShieldCheck, UserCircle, Sparkles } from "lucide-react";
 
 export const LoginPage = ({ role }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const {
-    apiLoading,
-    isLoggedIn,
-    fetchData,
-    postData,
-    LogoutUser,
-    storeTokenInLS,
-  } = useAuth();
+  const { postData, fetchData, storeTokenInLS } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -26,109 +20,132 @@ export const LoginPage = ({ role }) => {
     }
 
     try {
-      const responseData = await postData(
-        `${process.env.BACKEND_URL}/api/login`,
-        {
-          email,
-          role,
-          password,
-        }
-      );
+      const responseData = await postData(`${process.env.BACKEND_URL}/api/login`, {
+        email,
+        role,
+        password,
+      });
+
       if (responseData.success) {
-        LogoutUser(); // If logout is required before login, ensure this is intentional.
-        await storeTokenInLS(responseData.token); // Ensure this function is correctly implemented.
-        const responseUserData = await fetchData(
-          `${process.env.BACKEND_URL}/api/user`
-        );
+        await storeTokenInLS(responseData.token);
+        const responseUserData = await fetchData(`${process.env.BACKEND_URL}/api/user`);
+
         if (responseUserData.success) {
-          toast.success(responseData.message || "Login successfully!");
-          const { role, friends } = responseUserData.data;
+          toast.success("Welcome back!");
+          const { role: userRole, friends } = responseUserData.data;
+
           if (location?.state?.navigateToPayment) {
-            navigate(location?.state?.navigateToPayment, {
-              state: { ...location?.state },
-            });
-          } else if (role === "student" && (!friends || friends.length === 0)) {
+            navigate(location?.state?.navigateToPayment, { state: { ...location?.state } });
+          } else if (userRole === "student" && (!friends || friends.length === 0)) {
             navigate("/counselorList");
           } else {
             navigate("/dashboard");
           }
-        } else {
-          toast.error(responseUserData.message);
         }
       } else {
         toast.error(responseData.message || "Login failed.");
       }
     } catch (error) {
-      console.error("Login error:", error);
       toast.error("An unexpected error occurred during login.");
     }
   };
-  // if (apiLoading) {
-  //   return <LoadingOverlay />;
-  // }
+
+  const RoleIcon = role === "admin" ? ShieldCheck : UserCircle;
+
   return (
-    <>
-      <div className="h-screen flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-lg max-w-sm w-full">
-          <h2 className="text-2xl font-bold mb-6 text-center">Login</h2>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Email:
-              </label>
-              <input
-                type="email"
-                id="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              />
+    <div className="min-h-screen flex pt-20 items-center justify-center bg-surface-soft dark:bg-primary-dark p-6 overflow-hidden relative">
+      {/* Background Decor */}
+      <div className="fixed inset-0 pointer-events-none -z-10">
+        <div className="absolute top-0 right-0 w-[50%] h-[50%] bg-accent/5 rounded-full blur-[150px]" />
+        <div className="absolute bottom-0 left-0 w-[40%] h-[40%] bg-secondary/5 rounded-full blur-[120px]" />
+      </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-lg"
+      >
+        <Link
+          to="/login"
+          className="inline-flex items-center gap-2 text-gray-400 hover:text-accent font-bold mb-8 transition-colors group"
+        >
+          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+          <span className="text-xs uppercase tracking-widest">Select Different Role</span>
+        </Link>
+
+        <div className="bg-white dark:bg-primary-light/10 backdrop-blur-xl rounded-[3rem] p-8 md:p-12 shadow-2xl border border-white dark:border-white/5 relative overflow-hidden">
+          {/* Header */}
+          <div className="text-center mb-10">
+            <div className={`w-20 h-20 rounded-3xl mx-auto mb-6 flex items-center justify-center shadow-xl ${role === 'student' ? 'bg-accent/10 text-accent' : 'bg-secondary/10 text-secondary'}`}>
+              <RoleIcon size={40} />
             </div>
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Password:
-              </label>
-              <input
-                type="password"
-                id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              />
-            </div>
-            <button
-              type="submit"
-              className="px-4 py-2 w-full rounded text-primary bg-secondary hover:text-black font-bold text-xl duration-300 hover:scale-110"
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 dark:bg-white/5 text-gray-500 font-bold text-[10px] uppercase tracking-widest mb-4"
             >
-              Login
-            </button>
+              <Sparkles size={12} className="text-accent" />
+              <span>Login as {role}</span>
+            </motion.div>
+            <h2 className="text-3xl font-black text-primary dark:text-white tracking-tight">Access Your Portal</h2>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">Email Address</label>
+              <div className="relative group">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-accent transition-colors" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@university.edu"
+                  className="w-full pl-12 pr-6 py-4 rounded-2xl bg-gray-50 dark:bg-white/5 border border-transparent focus:border-accent/30 focus:bg-white dark:focus:bg-white/10 outline-none transition-all font-medium text-primary dark:text-white"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex justify-between items-center px-4">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Password</label>
+                <Link to="/email-reset" className="text-[10px] font-black text-accent uppercase tracking-widest hover:underline">Forgot?</Link>
+              </div>
+              <div className="relative group">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-accent transition-colors" />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full pl-12 pr-6 py-4 rounded-2xl bg-gray-50 dark:bg-white/5 border border-transparent focus:border-accent/30 focus:bg-white dark:focus:bg-white/10 outline-none transition-all font-medium text-primary dark:text-white"
+                  required
+                />
+              </div>
+            </div>
+
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              type="submit"
+              className="w-full flex items-center justify-center gap-3 py-5 rounded-2xl bg-primary dark:bg-accent text-white font-black text-sm uppercase tracking-[0.2em] shadow-xl shadow-primary/20 dark:shadow-accent/20 hover:shadow-2xl transition-all"
+            >
+              Sign In <LogIn size={18} />
+            </motion.button>
           </form>
+
           {role !== "admin" && (
-            <div className="mt-4 flex justify-between">
-              <Link
-                to="/email-reset"
-                className="text-blue-500 text-sm hover:underline"
-              >
-                Forgot Password?
-              </Link>
-              <Link
-                to={`/register/${role}`}
-                className="text-blue-500 text-sm hover:underline"
-              >
-                Register
-              </Link>
+            <div className="mt-10 pt-8 border-t border-gray-100 dark:border-white/5 text-center">
+              <p className="text-sm font-medium text-gray-500">
+                Don't have an account?{" "}
+                <Link to={`/register/${role}`} className="text-accent font-black hover:underline uppercase tracking-widest text-xs ml-1">
+                  Register Now
+                </Link>
+              </p>
             </div>
           )}
         </div>
-      </div>
-    </>
+      </motion.div>
+    </div>
   );
 };

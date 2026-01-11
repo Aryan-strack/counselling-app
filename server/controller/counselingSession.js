@@ -40,6 +40,7 @@ exports.postscheduleCounseling = async (req, res) => {
       paymentMethodId,
     } = req.body;
 
+
     if (req.user.role === "counselor" || req.user.role === "admin") {
       return res.status(403).json({
         message: `${req.user.role} can't create session`,
@@ -52,12 +53,12 @@ exports.postscheduleCounseling = async (req, res) => {
         .status(404)
         .json({ message: "counselor not found", success: false });
     }
-
     // Check if the slot is already booked
     const existingSession = await CounselingSession.findOne({
       counselorId,
       startDate: new Date(startDate).toISOString(),
     });
+    // console.log(counselor)
 
     if (existingSession) {
       return res.status(400).json({
@@ -67,18 +68,27 @@ exports.postscheduleCounseling = async (req, res) => {
     }
 
     // Process payment using Stripe
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Number(price) * 100, // Convert price to number and multiply by 100 for cents
-      currency: "usd",
-      payment_method: paymentMethodId,
-      confirm: true,
-      automatic_payment_methods: {
-        enabled: true,
-        allow_redirects: "never", // Disable redirect-based payment methods
-      },
-    });
+    let paymentIntent;
+    try {
+      paymentIntent = await stripe.paymentIntents.create({
+        amount: Number(price) * 100, // Convert price to number and multiply by 100 for cents
+        currency: "usd",
+        payment_method: paymentMethodId,
+        confirm: true,
+        automatic_payment_methods: {
+          enabled: true,
+          allow_redirects: "never", // Disable redirect-based payment methods
+        },
+      });
+    } catch (error) {
+      console.error("Stripe Payment Error:", error);
+      return res.status(400).json({
+        message: error.message || "Payment processing failed",
+        success: false,
+      });
+    }
 
-    if (paymentIntent.status !== "succeeded") {
+    if (!paymentIntent || paymentIntent.status !== "succeeded") {
       return res.status(400).json({
         message: "Payment failed",
         success: false,
@@ -103,6 +113,7 @@ exports.postscheduleCounseling = async (req, res) => {
       data: session,
     });
   } catch (error) {
+    console.log(error.message)
     return res.status(500).json({
       message: "Failed to schedule counseling session",
       success: false,
@@ -120,17 +131,40 @@ exports.getscheduleCounseling = async (req, res, next) => {
     const sessionQuery = isStudentRequest
       ? { counselorId, studentId } // Student request, upcoming sessions only
       : {
-          counselorId: studentId,
-          studentId: counselorId,
-        };
+        counselorId: studentId,
+        studentId: counselorId,
+      };
     // Counselor request, upcoming sessions only
 
     // Find the soonest upcoming session after the current UTC date
     const currentUtcDate = new Date().toISOString();
     const counselingSession = await CounselingSession.findOne({
       ...sessionQuery,
-      startDate: { $gt: currentUtcDate }, // Change $lt to $gt
-    }).sort({ startDate: 1 }); // Sort by startDate in ascending order to get the earliest session
+      endDate: { $gt: currentUtcDate }, // Check if session has not ended
+    }).sort({ startDate: 1 }); // Sort by startDate in ascending order to get the earliest/current session
+
+
+    // const studentSelectedTime = "20:53"; // Student selects 8:00 PM (24-hour format)
+    // const currentTime = new Date(); // Current time
+
+    // // Parse student selected time into a Date object
+    // const [hours, minutes] = studentSelectedTime.split(":").map(Number);
+    // const startDate = new Date(currentTime); // Initialize startDate with the current date
+    // startDate.setHours(hours, minutes, 0, 0); // Set hours and minutes to the selected time
+
+    // // Calculate endDate as 10 minutes after startDate
+    // const endDate = new Date(startDate.getTime() + 10 * 60 * 1000);
+
+    // return res.status(200).json({
+    //     message: "Counseling session times retrieved successfully",
+    //     success: true,
+    //     data: {
+    //         startDate: startDate.toISOString(),
+    //         endDate: endDate.toISOString(),
+    //         durationMinutes: 10, // Explicitly return the duration
+    //     },
+    // });
+
 
     if (!counselingSession) {
       return res.status(404).json({
@@ -145,6 +179,7 @@ exports.getscheduleCounseling = async (req, res, next) => {
       success: true,
     });
   } catch (error) {
+    console.log(error.message)
     return res.status(500).json({
       message: "Failed to get counseling session",
       success: false,
@@ -183,4 +218,3 @@ exports.getCounselorAvailableSlots = async (req, res) => {
     });
   }
 };
- 

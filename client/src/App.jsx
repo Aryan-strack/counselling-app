@@ -11,7 +11,6 @@ import { Payment } from "./pages/Payment";
 import { Register } from "./pages/Register";
 import { StudentRegister } from "./components/auth/Register/StudentRegister";
 import { CounselorRegister } from "./components/auth/Register/CounselorRegister";
-import { VerifyUser } from "./components/auth/Verify/VerifyUser";
 import { CounselorProfilePage } from "./components/EditProfile/CounselorProfile";
 import { StudentProfilePage } from "./components/EditProfile/StudentProfile";
 import { CreateSession } from "./components/Dashboard/createCounseling/CreateCounseling";
@@ -29,6 +28,7 @@ import { AdminStudentProfile } from "./components/Dashboard/admin-dashboard/admi
 import { AdminStudentPage } from "./components/Dashboard/admin-dashboard/adminStudentAccess/AdminStudentAccess";
 import { AdminBookUpload } from "./components/Dashboard/admin-dashboard/adminBookUpload/AdminBookUpload";
 import { AllBooks } from "./components/Dashboard/bookLibrary/BookLibrary";
+import { AboutUs } from "./pages/AboutUs";
 import NotFound from "./components/Error/Error404";
 
 export const App = () => {
@@ -58,47 +58,25 @@ export const App = () => {
         <Navbar />
       </div>
       <Routes>
-        {isLoggedIn && userData.role ? (
+        {isLoggedIn ? (
           <>
             <Route path="/payment" element={<Payment />} />
-            {userData.role === "student" && userData.friends.length > 0 ? (
-              <>
-                <Route path="/dashboard" element={<UserDashboard />}>
-                  <Route index element={<ChatWindow />} />
-                  <Route
-                    path="/dashboard/book-library"
-                    element={<AllBooks />}
-                  />
-                </Route>
+            <Route path="/dashboard" element={<UserDashboard />}>
+              <Route index element={<ChatWindow />} />
+              {userData.role === "student" && (
                 <Route
-                  path="/profile/student"
-                  element={<StudentProfilePage />}
+                  path="/dashboard/book-library"
+                  element={<AllBooks />}
                 />
-              </>
-            ) : (
-              <Route path="/" element={<HomePage />} />
-            )}
-            {userData.role === "counselor" ? (
-              <>
-                <Route path="/dashboard" element={<UserDashboard />}>
-                  <Route index element={<ChatWindow />} />
-                  <Route
-                    path="/dashboard/create-session"
-                    element={<CreateSession />}
-                  />
-                </Route>
+              )}
+              {userData.role === "counselor" && (
                 <Route
-                  path="/profile/counselor"
-                  element={<CounselorProfilePage />}
+                  path="/dashboard/create-session"
+                  element={<CreateSession />}
                 />
-              </>
-            ) : (
-              <Route path="/" element={<HomePage />} />
-            )}
-            {userData.role === "admin" ? (
-              <>
-                <Route path="/dashboard" element={<UserDashboard />}>
-                  <Route index element={<ChatWindow />} />
+              )}
+              {userData.role === "admin" && (
+                <>
                   <Route
                     path="/dashboard/admin-counselor"
                     element={<AdminCounselorPage />}
@@ -123,9 +101,21 @@ export const App = () => {
                     path="/dashboard/book-library"
                     element={<AllBooks />}
                   />
-                </Route>
-              </>
-            ) : null}
+                </>
+              )}
+            </Route>
+            {userData.role === "student" && (
+              <Route
+                path="/profile/student"
+                element={<StudentProfilePage />}
+              />
+            )}
+            {userData.role === "counselor" && (
+              <Route
+                path="/profile/counselor"
+                element={<CounselorProfilePage />}
+              />
+            )}
           </>
         ) : (
           <>
@@ -141,7 +131,6 @@ export const App = () => {
             <Route path="/register" element={<Register />} />
             <Route path="/register/student" element={<StudentRegister />} />
             <Route path="/register/counselor" element={<CounselorRegister />} />
-            <Route path="/register/verify/:token" element={<VerifyUser />} />
             <Route path={"/email-reset"} element={<VerifyEmailReset />} />
             <Route
               path={"/password-reset/:token/:userId"}
@@ -156,6 +145,7 @@ export const App = () => {
         <Route path="/login/admin" element={<LoginPage role={"admin"} />} />
         <Route path="/" element={<HomePage />} />
         <Route path="/counselorList" element={<CounselorList />} />
+        <Route path="/about" element={<AboutUs />} />
         <Route path="*" element={<NotFound />} />{" "}
         {/* Catch-all route for 404 */}
       </Routes>
